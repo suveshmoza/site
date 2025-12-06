@@ -37,6 +37,7 @@ body {
     margin: 0;
     padding: 0;
     height: 100vh;
+    height: 100dvh;
     overflow: hidden;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -45,6 +46,7 @@ body {
 
 .main-content {
     height: 100vh;
+    height: 100dvh;
     width: 100%;
     display: flex;
     flex-direction: column;
@@ -53,6 +55,7 @@ body {
 .view {
     display: none;
     height: 100%;
+    min-height: 0;
     flex-direction: column;
     overflow: hidden;
     animation: fadeIn 0.3s ease-in-out;
@@ -70,7 +73,8 @@ body {
     overflow-y: auto;
     height: 120%;
     padding: 16px;
-    padding-bottom: 120px;
+    padding-bottom: 160px;
+    -webkit-overflow-scrolling: touch;
 }
 
 header {
@@ -81,6 +85,7 @@ header {
     justify-content: space-between;
     z-index: 10;
     transition: background-color 0.3s ease;
+    flex-shrink: 0;
 }
 
 .header-title { display: flex; align-items: center; }
@@ -498,6 +503,6 @@ input:checked + .slider:before { transform: translateX(20px); background-color: 
 @media (max-width: 767px) {
     header { padding: 16px; }
     .search-container { padding: 16px 16px 0 16px; }
-    .content-scroll { padding: 16px; padding-bottom: 120px; }
+    .content-scroll { padding: 16px; padding-bottom: 160px; }
     .explore-card { padding: 16px; height: 13%; }
 }
