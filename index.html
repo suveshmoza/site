@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Breathe J&K</title>
+    <title>Breathe</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
@@ -15,7 +15,7 @@
 
     <nav class="sidebar">
         <div class="brand">
-            <h2>Breathe <span style="font-weight:300; color:var(--primary)">J&K</span></h2>
+            <h2>Breathe <img src="assets/images/logo.png" alt="Logo" class="app-logo"></h2>
         </div>
         <div class="nav-links">
             <button class="nav-btn active" onclick="showView('dashboard')" id="side-dashboard">
@@ -43,7 +43,7 @@
             <header>
                 <div class="header-title">
                     <h1 class="desktop-only">Dashboard</h1>
-                    <h1 class="mobile-only">Breathe <span style="font-weight:300; color:var(--primary)">J&K</span></h1>
+                    <h1 class="mobile-only">Breathe <img src="assets/images/logo.png" alt="Logo" class="app-logo"></h1>
                 </div>
                 
                 <button class="add-btn" onclick="showView('explore')">
@@ -76,6 +76,7 @@
                         <div class="naqi-chip">NAQI</div>
                         <div class="primary-pollutant" id="detail-primary">Primary: --</div>
                         <div class="update-time" id="detail-updated">Updated --</div>
+                        <div id="detail-provider" class="provider-container"></div>
                     </div>
 
                     <div class="card chart-card">
@@ -163,6 +164,16 @@
                     <div class="settings-title">Veer P.S Singh</div>
                     <div class="settings-subtitle">@Lostless1907</div>
                 </div>
+
+                <div class="spacer-24"></div>
+                
+                <div class="card promo-card clickable" onclick="window.open('https://github.com/breathe-OSS/breathe/releases/', '_blank')">
+                    <div style="flex:1">
+                        <div style="font-weight:700; font-size:16px; color:var(--primary); margin-bottom:4px;">Download the App</div>
+                        <div style="font-size:12px; color:var(--on-surface-variant); line-height:1.4;">Native Android experience.</div>
+                    </div>
+                    <svg viewBox="0 0 24 24" style="width:28px; height:28px; fill:var(--primary); margin-left:16px;"><path d="M17.6 9.48l1.84-3.18c.16-.31.04-.69-.26-.85-.29-.15-.68-.06-.86.22l-1.92 3.32c-2.9-.19-5.9-.19-8.8 0L5.68 5.67c-.19-.29-.58-.38-.87-.22s-.42.54-.26.85l1.84 3.18C3.33 11.25 1 14.9 1 19h22c0-4.1-2.33-7.75-5.4-9.52zM7 15c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm10 0c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z"/></svg>
+                </div>
             </div>
         </div>
     </main>
@@ -173,15 +184,22 @@
             <div class="modal-body">
                 <p><strong>Jammu & Kashmir regions (excl. Srinagar)</strong></p>
                 <p class="modal-text">Air quality and weather data sourced from Open-Meteo.</p>
-                <a href="https://open-meteo.com/" target="_blank" class="link-text">open-meteo.com</a>
+                <a href="https://open-meteo.com/" target="_blank" class="link-img">
+                    <img src="assets/images/open_meteo_logo.png" class="provider-logo dark-only" alt="OpenMeteo">
+                    <img src="assets/images/open_meteo_logo_light.png" class="provider-logo light-only" alt="OpenMeteo">
+                </a>
                 
                 <div class="divider"></div>
 
                 <p><strong>Srinagar region</strong></p>
                 <p class="modal-text">Air quality data sourced from OpenAQ, using measurements published by the Central Pollution Control Board (CPCB).</p>
-                <div style="display:flex; gap:16px;">
+                <div style="display:flex; gap:16px; align-items: center;">
+                    <a href="https://openaq.org/" target="_blank" class="link-img">
+                        <div class="openaq-bg">
+                            <img src="assets/images/open_aq_logo.png" class="provider-logo" style="margin-top:0;" alt="OpenAQ">
+                        </div>
+                    </a>
                     <a href="https://cpcb.nic.in/" target="_blank" class="link-text">cpcb.nic.in</a>
-                    <a href="https://openaq.org/" target="_blank" class="link-text">openaq.org</a>
                 </div>
             </div>
             <div class="modal-actions">

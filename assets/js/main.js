@@ -147,6 +147,20 @@ async function openZoneDetails(zoneId) {
     const diff = Math.floor((now - data.timestamp_unix) / 60);
     document.getElementById('detail-updated').innerText = `Updated ${diff} min ago`;
 
+    const provider = zoneConfig.provider || 'openmeteo';
+    const providerContainer = document.getElementById('detail-provider');
+    
+    if (provider === 'openaq') {
+        providerContainer.innerHTML = `<a href="https://openaq.org" target="_blank" class="provider-link"><div class="openaq-bg"><img src="assets/images/open_aq_logo.png" alt="OpenAQ" style="height:20px; display:block;"></div></a>`;
+    } else {
+        providerContainer.innerHTML = `
+            <a href="https://open-meteo.com" target="_blank" class="provider-link">
+                <img src="assets/images/open_meteo_logo.png" class="dark-only" alt="OpenMeteo" style="height:24px;">
+                <img src="assets/images/open_meteo_logo_light.png" class="light-only" alt="OpenMeteo" style="height:24px;">
+            </a>
+        `;
+    }
+
     renderDetailChart(data.history);
     renderPollutantGrid(data.concentrations_us_units || {});
 }
