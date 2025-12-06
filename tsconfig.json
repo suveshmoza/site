@@ -1,7 +1,6 @@
 {
   "compilerOptions": {
     "target": "ES2016",
-    "ignoreDeprecations": "6.0",
     "module": "ESNext",
     "outDir": "./assets/js", 
     "rootDir": "./assets/ts",
