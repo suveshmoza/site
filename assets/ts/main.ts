@@ -1,111 +1,43 @@
-// Interfaces
-
-interface Zone {
-    id: string;
-    name: string;
-    lat: number;
-    lon: number;
-    provider?: string;
-    zone_type?: string;
-}
-
-interface AQIHistory {
-    ts: number;
-    aqi: number;
-}
-
-interface Pollutants {
-    [key: string]: number;
-}
-
-interface AQIData {
-    aqi: number;
-    main_pollutant: string;
-    timestamp_unix: number;
-    history: AQIHistory[];
-    concentrations_us_units: Pollutants;
-    zone_id: string;
-    zone_name: string;
-    source: string;
-}
-
-interface AQIColorResult {
-    bg: string;
-    hex: string;
-}
-
-declare const L: any;
-declare const Chart: any;
-
-const API_URL = "https://api.breatheoss.app";
+import { STORAGE_KEY_PINS } from './config.js';
+import { fetchZones, getZoneAQI } from './api.js';
+import { initTheme } from './utils.js';
+import { initMap, updateMapTiles, resizeMap } from './map.js';
+import { renderDashboardCard, renderExploreItem, updateDetailView, updateChartTheme } from './ui.js';
+import { Zone } from './types.js';
 
 let allZones: Zone[] = [];
-let pinnedZoneIds: string[] = JSON.parse(localStorage.getItem('breathe_pinned_zones') || '[]');
-let mapInstance: any = null;
-let detailChart: any = null;
-let mapTileLayer: any = null;
+let pinnedZoneIds: string[] = JSON.parse(localStorage.getItem(STORAGE_KEY_PINS) || '[]');
 
+// init
 document.addEventListener('DOMContentLoaded', async () => {
-    initTheme();
-    await fetchZones();
-    renderDashboard();
+    initTheme((newTheme) => {
+        updateMapTiles(newTheme);
+        updateChartTheme();
+    });
+
+    allZones = await fetchZones();
+    refreshDashboard();
+
     updateNavHighlight('dashboard');
-    
+
     const searchInput = document.getElementById('zone-search') as HTMLInputElement;
     if (searchInput) {
-        searchInput.addEventListener('input', (e: Event) => {
+        searchInput.addEventListener('input', (e) => {
             const target = e.target as HTMLInputElement;
-            renderExploreList(target.value);
+            refreshExploreList(target.value);
         });
     }
 });
 
-function initTheme(): void {
-    const toggle = document.getElementById('theme-toggle') as HTMLInputElement;
-    const savedTheme = localStorage.getItem('theme') || 'dark';
-    
-    document.documentElement.setAttribute('data-theme', savedTheme);
-    if (toggle) {
-        toggle.checked = (savedTheme === 'dark');
-        toggle.addEventListener('change', (e: Event) => {
-            const target = e.target as HTMLInputElement;
-            const newTheme = target.checked ? 'dark' : 'light';
-            document.documentElement.setAttribute('data-theme', newTheme);
-            localStorage.setItem('theme', newTheme);
-            
-            if(detailChart) detailChart.update();
-            if(mapInstance) updateMapTiles(newTheme);
-        });
-    }
-}
+// controller actions
 
-async function fetchZones(): Promise<void> {
-    try {
-        const res = await fetch(`${API_URL}/zones`);
-        const data = await res.json();
-        allZones = data.zones;
-    } catch (e) {
-        console.error("Fetch failed", e);
-    }
-}
-
-async function getZoneAQI(zoneId: string): Promise<AQIData | null> {
-    try {
-        const res = await fetch(`${API_URL}/aqi/${zoneId}`);
-        return await res.json();
-    } catch (e) {
-        return null;
-    }
-}
-
-async function renderDashboard(): Promise<void> {
+async function refreshDashboard() {
     const container = document.getElementById('pinned-container');
     const emptyState = document.getElementById('empty-state');
-    
     if (!container || !emptyState) return;
 
     container.innerHTML = '';
-    
+
     if (pinnedZoneIds.length === 0) {
         emptyState.classList.remove('hidden');
         return;
@@ -113,306 +45,75 @@ async function renderDashboard(): Promise<void> {
     emptyState.classList.add('hidden');
 
     for (const id of pinnedZoneIds) {
-        const zoneConfig = allZones.find(z => z.id === id);
-        if (!zoneConfig) continue;
-
+        const zone = allZones.find(z => z.id === id);
+        if (!zone) continue;
         const data = await getZoneAQI(id);
         if (!data) continue;
 
-        const colorClass = getAQIColor(data.aqi).bg;
-
-        const card = document.createElement('div');
-        card.className = 'dashboard-card';
-        card.onclick = () => openZoneDetails(id);
-        card.innerHTML = `
-            <div>
-                <h3 style="margin:0; font-size:18px;">${zoneConfig.name}</h3>
-                <p style="margin:4px 0 0 0; color:var(--on-surface-variant); font-size:12px;">
-                    ${data.main_pollutant.toUpperCase()}
-                </p>
-            </div>
-            <div class="aqi-badge-small ${colorClass}">
-                ${data.aqi}
-            </div>
-        `;
+        const card = renderDashboardCard(zone, data, () => openDetails(zone.id));
         container.appendChild(card);
     }
 }
 
-function renderExploreList(filter: string = ""): void {
+function refreshExploreList(filter: string = "") {
     const container = document.getElementById('zone-list');
     if (!container) return;
-    
     container.innerHTML = '';
 
     const filtered = allZones.filter(z => z.name.toLowerCase().includes(filter.toLowerCase()));
 
-    filtered.forEach(z => {
-        const isPinned = pinnedZoneIds.includes(z.id);
-        const div = document.createElement('div');
-        div.className = 'explore-card';
-        
-        div.innerHTML = `
-            <div>
-                <div style="font-weight:500; font-size:16px; margin-bottom:4px;">${z.name}</div>
-                <div style="font-size:12px; color:var(--on-surface-variant);">${z.provider || 'openmeteo'}</div>
-            </div>
-            <button class="pin-btn ${isPinned ? 'pinned' : ''}" data-id="${z.id}">
-                <svg viewBox="0 0 24 24"><path d="M16 9V4l1 1c.55.55 1.45.55 2 0s.55-1.45 0-2l-7-7-7 7c-.55.55-.55 1.45 0 2s1.45.55 2 0l1-1v5c0 1.66-1.34 3-3 3h-1v2h12v-2h-1c-1.66 0-3-1.34-3-3zM12 2C13 2 14 3 14 4V9H10V4C10 3 11 2 12 2M12 14C13.5 14 15 13 15 11.5V10H9V11.5C9 13 10.5 14 12 14Z" transform="rotate(45 12 12)"/></svg>
-            </button>
-        `;
-
-        const btn = div.querySelector('.pin-btn') as HTMLButtonElement;
-        btn.addEventListener('click', () => togglePin(z.id, btn));
-
-        container.appendChild(div);
+    filtered.forEach(zone => {
+        const isPinned = pinnedZoneIds.includes(zone.id);
+        const card = renderExploreItem(zone, isPinned, () => togglePin(zone.id));
+        container.appendChild(card);
     });
 }
 
-function togglePin(id: string, btn: HTMLButtonElement): void {
+function togglePin(id: string) {
     if (pinnedZoneIds.includes(id)) {
         pinnedZoneIds = pinnedZoneIds.filter(zid => zid !== id);
-        btn.classList.remove('pinned');
     } else {
         pinnedZoneIds.push(id);
-        btn.classList.add('pinned');
     }
-    localStorage.setItem('breathe_pinned_zones', JSON.stringify(pinnedZoneIds));
-    renderDashboard();
+    localStorage.setItem(STORAGE_KEY_PINS, JSON.stringify(pinnedZoneIds));
+    refreshDashboard();
 }
 
-
-async function openZoneDetails(zoneId: string): Promise<void> {
-    showView('details');
-    
-    const zoneConfig = allZones.find(z => z.id === zoneId);
-    const titleHeader = document.getElementById('detail-title-header');
-    if(zoneConfig && titleHeader) titleHeader.innerText = zoneConfig.name;
+async function openDetails(zoneId: string) {
+    handleShowView('details');
+    const zone = allZones.find(z => z.id === zoneId);
+    if (!zone) return;
 
     const data = await getZoneAQI(zoneId);
-    if (!data) return;
-
-    const colors = getAQIColor(data.aqi);
-    const aqiEl = document.getElementById('detail-aqi');
-    const chipEl = document.querySelector('.naqi-chip') as HTMLElement;
-    const primaryEl = document.getElementById('detail-primary');
-    const updatedEl = document.getElementById('detail-updated');
-    const providerContainer = document.getElementById('detail-provider');
-    
-    if (aqiEl) {
-        aqiEl.innerText = data.aqi.toString();
-        aqiEl.style.color = colors.hex;
+    if (data) {
+        updateDetailView(zone, data);
     }
-    
-    if (chipEl) {
-        chipEl.style.backgroundColor = colors.hex;
-    }
-    
-    if (primaryEl) {
-        primaryEl.innerText = `Primary: ${data.main_pollutant.toUpperCase()}`;
-    }
-    
-    if (updatedEl) {
-        const now = Date.now() / 1000;
-        const diff = Math.floor((now - data.timestamp_unix) / 60);
-        updatedEl.innerText = `Updated ${diff} min ago`;
-    }
-
-    if (providerContainer && zoneConfig) {
-        const provider = zoneConfig.provider || 'openmeteo';
-        if (provider === 'openaq') {
-            providerContainer.innerHTML = `<a href="https://openaq.org" target="_blank" class="provider-link"><div class="openaq-bg"><img src="assets/images/open_aq_logo.png" alt="OpenAQ" style="height:20px; display:block;"></div></a>`;
-        } else {
-            providerContainer.innerHTML = `
-                <a href="https://open-meteo.com" target="_blank" class="provider-link">
-                    <img src="assets/images/open_meteo_logo.png" class="dark-only" alt="OpenMeteo" style="height:24px;">
-                    <img src="assets/images/open_meteo_logo_light.png" class="light-only" alt="OpenMeteo" style="height:24px;">
-                </a>
-            `;
-        }
-    }
-
-    renderDetailChart(data.history);
-
-    renderPollutantGrid(data.concentrations_us_units || {});
 }
 
-function renderDetailChart(history: AQIHistory[]): void {
-    const canvas = document.getElementById('detailChart') as HTMLCanvasElement;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+// navigation logic
 
-    if (detailChart) detailChart.destroy();
+(window as any).showView = handleShowView;
+(window as any).openModal = (id: string) => document.getElementById(id)?.classList.remove('hidden');
+(window as any).closeModal = (id: string) => document.getElementById(id)?.classList.add('hidden');
 
-    const sorted = history.sort((a, b) => a.ts - b.ts);
-    const labels = sorted.map(h => {
-        const d = new Date(h.ts * 1000);
-        return `${d.getHours()}:00`;
-    });
-    const values = sorted.map(h => h.aqi);
-
-    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-    const lineColor = '#a8c7fa'; 
-    
-    const gradient = ctx.createLinearGradient(0, 0, 0, 300);
-    gradient.addColorStop(0, isDark ? 'rgba(168, 199, 250, 0.4)' : 'rgba(65, 105, 225, 0.4)');
-    gradient.addColorStop(1, isDark ? 'rgba(168, 199, 250, 0.0)' : 'rgba(65, 105, 225, 0.0)');
-
-    detailChart = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: labels,
-            datasets: [{
-                data: values,
-                borderColor: lineColor,
-                backgroundColor: gradient,
-                borderWidth: 2,
-                tension: 0.4,
-                pointRadius: 0,
-                pointHoverRadius: 6,
-                fill: true
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            interaction: {
-                mode: 'index',
-                intersect: false,
-            },
-            plugins: { 
-                legend: { display: false }, 
-                tooltip: { enabled: true } 
-            },
-            scales: {
-                x: { display: false }, 
-                y: { display: false, min: 0 } 
-            },
-            layout: { padding: 0 }
-        }
-    });
-}
-
-function renderPollutantGrid(comps: Pollutants): void {
-    const container = document.getElementById('pollutant-grid');
-    if (!container) return;
-    container.innerHTML = '';
-
-    const defs = [
-        { key: 'pm2_5', label: 'PM2.5', unit: 'µg/m³' },
-        { key: 'co',    label: 'CO',    unit: 'mg/m³' },
-        { key: 'pm10',  label: 'PM10',  unit: 'µg/m³' },
-        { key: 'so2',   label: 'SO₂',   unit: 'µg/m³' },
-        { key: 'no2',   label: 'NO₂',   unit: 'µg/m³' },
-        { key: 'o3',    label: 'O₃',    unit: 'µg/m³' }
-    ];
-
-    defs.forEach(def => {
-        if (comps[def.key] !== undefined) {
-            const div = document.createElement('div');
-            div.className = 'pollutant-card';
-            div.innerHTML = `
-                <span class="p-name">${def.label}</span>
-                <span class="p-value">
-                    ${comps[def.key]}<span class="p-unit">${def.unit}</span>
-                </span>
-            `;
-            container.appendChild(div);
-        }
-    });
-}
-
-function initMap(): void {
-    if (mapInstance) return;
-    mapInstance = L.map('map-container', { zoomControl: false }).setView([33.9, 75.5], 8);
-    
-    updateMapTiles(document.documentElement.getAttribute('data-theme') || 'dark');
-
-    allZones.forEach(async (z) => {
-        if (!z.lat || !z.lon) return;
-
-        const data = await getZoneAQI(z.id);
-        if (!data) return;
-
-        const colorClass = getAQIColor(data.aqi).bg;
-        const style = getComputedStyle(document.documentElement);
-        const hex = style.getPropertyValue(`--aqi-${colorClass.replace('bg-', '')}`).trim();
-
-        const markerHtml = `
-            <div style="
-                background-color: ${hex};
-                width: 24px; height: 24px;
-                border-radius: 50%;
-                border: 2px solid #fff;
-                display: flex; align-items: center; justify-content: center;
-                color: #000; font-weight: bold; font-size: 10px;
-                box-shadow: 0 0 10px rgba(0,0,0,0.5);
-            ">${data.aqi}</div>
-        `;
-
-        const icon = L.divIcon({
-            html: markerHtml,
-            className: 'custom-pin',
-            iconSize: [30, 30],
-            iconAnchor: [15, 15]
-        });
-
-        L.marker([z.lat, z.lon], { icon: icon })
-            .addTo(mapInstance)
-            .bindPopup(`
-                <div style="text-align:center; color:#333;">
-                    <h3 style="margin:0">${z.name}</h3>
-                    <div style="font-size:24px; font-weight:bold; margin:5px 0;">${data.aqi} AQI</div>
-                    <small>Primary: ${data.main_pollutant.toUpperCase()}</small>
-                </div>
-            `);
-    });
-}
-
-function updateMapTiles(theme: string): void {
-    if (mapTileLayer) mapTileLayer.remove();
-    
-    const url = theme === 'light' 
-        ? 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png'
-        : 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
-
-    mapTileLayer = L.tileLayer(url, {
-        attribution: '&copy; OpenStreetMap &copy; CARTO',
-        maxZoom: 19
-    }).addTo(mapInstance);
-}
-
-window.showView = function(viewName: string): void {
+function handleShowView(viewName: string) {
     document.querySelectorAll('.view').forEach(el => el.classList.remove('active-view'));
     const view = document.getElementById(`view-${viewName}`);
     if (view) view.classList.add('active-view');
-    
+
     updateNavHighlight(viewName);
 
     if (viewName === 'map') {
-        setTimeout(() => {
-            initMap();
-            if(mapInstance) mapInstance.invalidateSize();
-        }, 100);
+        initMap(allZones);
+        resizeMap();
     }
     if (viewName === 'explore') {
         const searchInput = document.getElementById('zone-search') as HTMLInputElement;
-        renderExploreList(searchInput ? searchInput.value : "");
+        refreshExploreList(searchInput ? searchInput.value : "");
     }
 }
 
-window.openModal = function(id: string): void {
-    const el = document.getElementById(id);
-    if(el) el.classList.remove('hidden');
-}
-
-window.closeModal = function(id: string): void {
-    const el = document.getElementById(id);
-    if(el) el.classList.add('hidden');
-}
-
-function updateNavHighlight(viewName: string): void {
+function updateNavHighlight(viewName: string) {
     document.querySelectorAll('.nav-item, .nav-btn').forEach(el => el.classList.remove('active'));
     
     let target = viewName;
@@ -423,16 +124,4 @@ function updateNavHighlight(viewName: string): void {
 
     const sideBtn = document.getElementById(`side-${target}`);
     if (sideBtn) sideBtn.classList.add('active');
-}
-
-
-function getAQIColor(aqi: number): AQIColorResult {
-    const style = getComputedStyle(document.documentElement);
-    
-    if (aqi <= 50) return { bg: 'bg-good', hex: style.getPropertyValue('--aqi-good').trim() };
-    if (aqi <= 100) return { bg: 'bg-satisfactory', hex: style.getPropertyValue('--aqi-satisfactory').trim() };
-    if (aqi <= 200) return { bg: 'bg-moderate', hex: style.getPropertyValue('--aqi-moderate').trim() };
-    if (aqi <= 300) return { bg: 'bg-poor', hex: style.getPropertyValue('--aqi-poor').trim() };
-    if (aqi <= 400) return { bg: 'bg-very-poor', hex: style.getPropertyValue('--aqi-very-poor').trim() };
-    return { bg: 'bg-severe', hex: style.getPropertyValue('--aqi-severe').trim() };
 }
