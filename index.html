@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Breathe J&K Monitor</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="assets/css/style.css" />
+</head>
+<body>
+
+<div class="container">
+    <h2>Breathe</h2>
+    
+    <div class="card">
+        <label style="font-size: 0.9rem; color: #94a3b8;">Select Region</label>
+        <select id="zoneSelect"></select>
+    </div>
+
+    <div class="card aqi-box">
+        <div id="aqiValue" class="aqi-value">--</div>
+        <div class="aqi-label">Current AQI</div>
+        <div id="mainPollutant" class="pollutant-pill">Main: --</div>
+    </div>
+
+    <div class="card">
+        <label style="font-size: 0.9rem; color: #94a3b8; margin-bottom: 10px; display:block;">Past 24 Hours</label>
+        <div class="chart-container">
+            <canvas id="aqiChart"></canvas>
+        </div>
+    </div>
+</div>
+
+  <script src="assets/js/main.js"></script>
+</body>
+</html>
