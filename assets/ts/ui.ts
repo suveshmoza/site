@@ -1,8 +1,12 @@
 import { getAQIColor, getCurrentTheme } from './utils.js';
 import { Zone, AQIData, AQIHistory, Pollutants } from './types.js';
+import type { Chart as ChartJS, ChartConfiguration } from 'chart.js';
 
-declare const Chart: any;
-let detailChart: any = null;
+declare const Chart: typeof ChartJS;
+type LineChart = InstanceType<typeof Chart<'line', number[], string>>;
+
+// Chart is loaded via CDN, so we type the global constructor for TS.
+let detailChart: LineChart | null = null;
 
 // main dashboard
 export function renderDashboardCard(zone: Zone, data: AQIData, onClick: () => void): HTMLElement {
@@ -35,7 +39,9 @@ export function renderExploreItem(
   div.innerHTML = `
         <div>
             <div style="font-weight:500; font-size:16px; margin-bottom:4px;">${zone.name}</div>
-            <div style="font-size:12px; color:var(--on-surface-variant);">${zone.provider || 'openmeteo'}</div>
+            <div style="font-size:12px; color:var(--on-surface-variant);">${
+              zone.provider || 'openmeteo'
+            }</div>
         </div>
         <button class="pin-btn ${isPinned ? 'pinned' : ''}">
             <svg viewBox="0 0 24 24"><path d="M16 9V4l1 1c.55.55 1.45.55 2 0s.55-1.45 0-2l-7-7-7 7c-.55.55-.55 1.45 0 2s1.45.55 2 0l1-1v5c0 1.66-1.34 3-3 3h-1v2h12v-2h-1c-1.66 0-3-1.34-3-3zM12 2C13 2 14 3 14 4V9H10V4C10 3 11 2 12 2M12 14C13.5 14 15 13 15 11.5V10H9V11.5C9 13 10.5 14 12 14Z" transform="rotate(45 12 12)"/></svg>
@@ -149,7 +155,7 @@ function renderChart(history: AQIHistory[]) {
   gradient.addColorStop(0, isDark ? 'rgba(168, 199, 250, 0.4)' : 'rgba(65, 105, 225, 0.4)');
   gradient.addColorStop(1, isDark ? 'rgba(168, 199, 250, 0.0)' : 'rgba(65, 105, 225, 0.0)');
 
-  detailChart = new Chart(ctx, {
+  const config: ChartConfiguration<'line', number[], string> = {
     type: 'line',
     data: {
       labels: labels,
@@ -174,5 +180,7 @@ function renderChart(history: AQIHistory[]) {
       scales: { x: { display: false }, y: { display: false, min: 0 } },
       layout: { padding: 0 },
     },
-  });
+  };
+
+  detailChart = new Chart(ctx, config);
 }
